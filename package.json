@@ -1,0 +1,28 @@
+{
+  "name": "clawbase44-ai-bots",
+  "version": "1.0.0",
+  "description": "Workflow connections with Base44, Grok, ChatGPT, Replit, Web3 applications, and other repositories and services.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test src/**/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "base44",
+    "chatgpt",
+    "openai",
+    "grok",
+    "replit",
+    "web3",
+    "bots",
+    "workflow",
+    "integration"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

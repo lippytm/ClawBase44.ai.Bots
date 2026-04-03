@@ -1,0 +1,76 @@
+name: OpenAI / ChatGPT Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode: chat | assistant"
+        required: true
+        default: "chat"
+      prompt:
+        description: "User message to send"
+        required: true
+      assistant_id:
+        description: "Assistant ID (for assistant mode, overrides secret)"
+        required: false
+  repository_dispatch:
+    types:
+      - openai-trigger
+
+permissions:
+  contents: read
+
+jobs:
+  openai:
+    name: Run ChatGPT / Assistants API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Call OpenAI API
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          CHATGPT_ASSISTANT_ID: ${{ github.event.inputs.assistant_id || secrets.CHATGPT_ASSISTANT_ID }}
+          MODE: ${{ github.event.inputs.mode || github.event.client_payload.mode || 'chat' }}
+          PROMPT: ${{ github.event.inputs.prompt || github.event.client_payload.prompt }}
+        run: |
+          node -e "
+            const { createIntegrations } = require('./src/index');
+            const integrations = createIntegrations({});
+            const ai = integrations.openai;
+            const mode = process.env.MODE;
+            const prompt = process.env.PROMPT;
+
+            async function run() {
+              if (mode === 'assistant') {
+                const thread = await ai.createThread();
+                await ai.addMessage(thread.id, prompt);
+                const run = await ai.runAssistant(thread.id);
+                let status = run.status;
+                while (status === 'queued' || status === 'in_progress') {
+                  await new Promise(r => setTimeout(r, 2000));
+                  const updated = await ai.getRunStatus(thread.id, run.id);
+                  status = updated.status;
+                }
+                const msgs = await ai.listMessages(thread.id);
+                const reply = msgs.data.find(m => m.role === 'assistant');
+                console.log('Assistant reply:', reply ? reply.content[0].text.value : '(no reply)');
+              } else {
+                const result = await ai.chat([{ role: 'user', content: prompt }]);
+                console.log('ChatGPT reply:', result.choices[0].message.content);
+              }
+            }
+
+            run().catch(e => { console.error(e.message); process.exit(1); });
+          "

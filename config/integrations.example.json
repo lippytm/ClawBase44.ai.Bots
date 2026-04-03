@@ -1,0 +1,48 @@
+{
+  "_comment": "Copy this file to integrations.json and fill in your credentials. Never commit integrations.json.",
+  "github": {
+    "token": "GITHUB_TOKEN",
+    "repos": [
+      "owner/repo-1",
+      "owner/repo-2"
+    ],
+    "syncBranch": "main"
+  },
+  "base44": {
+    "apiUrl": "https://api.base44.com",
+    "apiKey": "BASE44_API_KEY",
+    "appId": "BASE44_APP_ID"
+  },
+  "openai": {
+    "apiUrl": "https://api.openai.com/v1",
+    "apiKey": "OPENAI_API_KEY",
+    "model": "gpt-4o",
+    "assistantId": "CHATGPT_ASSISTANT_ID"
+  },
+  "grok": {
+    "apiUrl": "https://api.x.ai/v1",
+    "apiKey": "XAI_API_KEY",
+    "model": "grok-3"
+  },
+  "replit": {
+    "apiUrl": "https://replit.com/api/v1",
+    "apiKey": "REPLIT_API_KEY",
+    "replId": "REPLIT_REPL_ID"
+  },
+  "web3": {
+    "rpcUrl": "https://mainnet.infura.io/v3/INFURA_PROJECT_ID",
+    "chainId": 1,
+    "contractAddress": "0x0000000000000000000000000000000000000000"
+  },
+  "webhooks": {
+    "incomingSecret": "WEBHOOK_SECRET",
+    "targets": [
+      {
+        "name": "my-service",
+        "url": "https://example.com/webhook",
+        "secret": "TARGET_WEBHOOK_SECRET",
+        "events": ["push", "pull_request", "workflow_run"]
+      }
+    ]
+  }
+}
