@@ -1,0 +1,63 @@
+name: Replit Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action: run | list | status"
+        required: true
+        default: "status"
+      repl_id:
+        description: "Repl ID (overrides secret REPLIT_REPL_ID)"
+        required: false
+  repository_dispatch:
+    types:
+      - replit-trigger
+
+permissions:
+  contents: read
+
+jobs:
+  replit:
+    name: Interact with Replit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Execute Replit action
+        env:
+          REPLIT_API_KEY: ${{ secrets.REPLIT_API_KEY }}
+          REPLIT_REPL_ID: ${{ github.event.inputs.repl_id || secrets.REPLIT_REPL_ID }}
+          ACTION: ${{ github.event.inputs.action || github.event.client_payload.action || 'status' }}
+        run: |
+          node -e "
+            const { createIntegrations } = require('./src/index');
+            const integrations = createIntegrations({});
+            const replit = integrations.replit;
+            const action = process.env.ACTION;
+
+            async function run() {
+              if (action === 'run') {
+                const result = await replit.runRepl();
+                console.log('Repl run result:', JSON.stringify(result));
+              } else if (action === 'list') {
+                const repls = await replit.listRepls();
+                console.log('Repls:', JSON.stringify(repls, null, 2));
+              } else {
+                const repl = await replit.getRepl();
+                console.log('Repl status:', JSON.stringify(repl, null, 2));
+              }
+            }
+
+            run().catch(e => { console.error(e.message); process.exit(1); });
+          "

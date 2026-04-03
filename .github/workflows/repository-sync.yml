@@ -1,0 +1,62 @@
+name: Repository Sync
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      event_type:
+        description: "Event type to broadcast to downstream repos"
+        required: false
+        default: "upstream-sync"
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Broadcast sync event to downstream repositories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Broadcast repository dispatch
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_SYNC_TOKEN }}
+          EVENT_TYPE: ${{ github.event.inputs.event_type || 'upstream-sync' }}
+          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          node -e "
+            const { createIntegrations } = require('./src/index');
+            const integrations = createIntegrations({});
+            const repos = (process.env.DOWNSTREAM_REPOS || '').split(',').map(r => r.trim()).filter(Boolean);
+            if (repos.length === 0) {
+              console.log('No downstream repos configured (set DOWNSTREAM_REPOS secret as comma-separated owner/repo list)');
+              process.exit(0);
+            }
+            integrations.github.repos = repos;
+            integrations.github.broadcastDispatch(process.env.EVENT_TYPE, {
+              source_repo: process.env.SOURCE_REPO,
+              source_sha: process.env.SOURCE_SHA,
+              source_ref: process.env.SOURCE_REF,
+            }).then(results => {
+              results.forEach((r, i) => {
+                if (r.status === 'fulfilled') console.log(repos[i], 'ok');
+                else console.error(repos[i], r.reason.message);
+              });
+            });
+          "
+        continue-on-error: true

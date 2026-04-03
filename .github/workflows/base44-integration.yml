@@ -1,0 +1,52 @@
+name: Base44 Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow_id:
+        description: "Base44 workflow ID to trigger"
+        required: true
+      payload:
+        description: "JSON payload for the workflow"
+        required: false
+        default: "{}"
+  repository_dispatch:
+    types:
+      - base44-trigger
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-base44:
+    name: Trigger Base44 workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Trigger Base44 workflow
+        env:
+          BASE44_API_KEY: ${{ secrets.BASE44_API_KEY }}
+          BASE44_APP_ID: ${{ secrets.BASE44_APP_ID }}
+          WORKFLOW_ID: ${{ github.event.inputs.workflow_id || github.event.client_payload.workflow_id }}
+          PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+        run: |
+          node -e "
+            const { createIntegrations } = require('./src/index');
+            const integrations = createIntegrations({});
+            let payload;
+            try { payload = JSON.parse(process.env.PAYLOAD); } catch { payload = {}; }
+            integrations.base44.triggerWorkflow(process.env.WORKFLOW_ID, payload)
+              .then(r => console.log('Base44 workflow triggered:', JSON.stringify(r)))
+              .catch(e => { console.error(e.message); process.exit(1); });
+          "

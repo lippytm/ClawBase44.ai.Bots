@@ -1,0 +1,65 @@
+name: Web3 Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action: block | balance | chainid"
+        required: true
+        default: "block"
+      address:
+        description: "Wallet address (required for balance action)"
+        required: false
+  repository_dispatch:
+    types:
+      - web3-trigger
+
+permissions:
+  contents: read
+
+jobs:
+  web3:
+    name: Query blockchain via JSON-RPC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Execute Web3 action
+        env:
+          WEB3_RPC_URL: ${{ secrets.WEB3_RPC_URL }}
+          WEB3_CHAIN_ID: ${{ secrets.WEB3_CHAIN_ID }}
+          WEB3_CONTRACT_ADDRESS: ${{ secrets.WEB3_CONTRACT_ADDRESS }}
+          ACTION: ${{ github.event.inputs.action || github.event.client_payload.action || 'block' }}
+          ADDRESS: ${{ github.event.inputs.address || github.event.client_payload.address }}
+        run: |
+          node -e "
+            const { createIntegrations } = require('./src/index');
+            const integrations = createIntegrations({});
+            const web3 = integrations.web3;
+            const action = process.env.ACTION;
+
+            async function run() {
+              if (action === 'balance') {
+                const wei = await web3.getBalance(process.env.ADDRESS);
+                console.log('Balance (wei):', wei);
+              } else if (action === 'chainid') {
+                const id = await web3.getChainId();
+                console.log('Chain ID:', id);
+              } else {
+                const block = await web3.getBlockNumber();
+                console.log('Latest block:', block);
+              }
+            }
+
+            run().catch(e => { console.error(e.message); process.exit(1); });
+          "
