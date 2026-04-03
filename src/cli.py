@@ -47,8 +47,8 @@ def content_generate(
     async def _run() -> None:
         wf = ContentGenerationWorkflow()
         result = await wf.run(
-                topic=topic, content_type=content_type, tone=tone, word_count=word_count
-            )
+            topic=topic, content_type=content_type, tone=tone, word_count=word_count
+        )
         console.rule("[bold green]Final Content")
         console.print(result.get("final_content") or result.get("draft", ""))
 
